@@ -1,0 +1,39 @@
+# Python Virtual Environments
+venv/
+*.venv/
+env/
+ENV/
+skyedge/pi/venv/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+skyedge/pi/.pytest_cache/
+
+# Operating System & IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Temporary storage & captures (keep directory structure via .gitkeep)
+skyedge/pi/storage/incoming/*
+!skyedge/pi/storage/incoming/.gitkeep
+skyedge/pi/storage/queued/*
+!skyedge/pi/storage/queued/.gitkeep
+skyedge/pi/storage/transmitted/*
+!skyedge/pi/storage/transmitted/.gitkeep
+skyedge/pi/storage/discarded/*
+!skyedge/pi/storage/discarded/.gitkeep
+
+# Large training datasets & historical runs (keep models, exclude raw multi-GB image sets)
+skyedge/pi/ai/datasets/
+skyedge/pi/train/
+skyedge/pi/valid/
+skyedge/pi/test/
+skyedge/pi/ai/runs/
+skyedge/pi/custom_images/
+runs/
+*.onnx.data
+yolov8n.pt
