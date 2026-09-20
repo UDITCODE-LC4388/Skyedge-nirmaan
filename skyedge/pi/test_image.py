@@ -13,6 +13,8 @@ if str(BASE_DIR) not in sys.path:
 os.chdir(BASE_DIR)
 
 from ai.detector import Detector
+from ai.segmentation_detector import SegmentationDetector
+from priority.arbitration import arbitrate
 from priority.scorer import compute_priority
 from resource.manager import ResourceManager
 from transmission.compressor import compress
@@ -74,41 +76,54 @@ def test_images(image_path=None, image_dir=None, output_dir="custom_images/annot
 
     # Initialize components
     detector = Detector(model_path=model_path, event_classes=event_classes)
+    seg_detector = SegmentationDetector()
     yolo_model = YOLO(model_path) if os.path.exists(model_path) else None
     resource_mgr = ResourceManager(cfg=cfg)
 
     routine_mv = mission_values.get("routine", 0.2)
     routine_urg = urgencies.get("routine", 0.1)
     aliases = {"fire": "wildfire", "smoke": "wildfire", "disaster_zone": "flood"}
+    tie_thresh = cfg.get("arbitration", {}).get("tie_breaker_threshold", 0.0)
 
     for idx, img_p in enumerate(images_to_test, 1):
         print(f"\n[{idx}/{len(images_to_test)}] Processing: {img_p.name}")
 
-        # 1. Detector pipeline predict
-        event_type, confidence, severity = detector.predict(str(img_p))
+        # 1. Dual model inference: YOLO and SegFormer
+        det_event, det_conf, det_sev = detector.predict(str(img_p))
+        seg_event, seg_conf, seg_sev = seg_detector.predict(str(img_p))
 
-        # 2. Priority scoring
-        lookup_key = event_type if event_type in mission_values else aliases.get(event_type, event_type)
-        mission_val = mission_values.get(lookup_key, routine_mv)
-        urgency_val = urgencies.get(lookup_key, routine_urg)
+        # 2. Priority scoring for both candidates
+        def score_cand(ev, conf, sev):
+            lk = ev if ev in mission_values else aliases.get(ev, ev)
+            mv = mission_values.get(lk, routine_mv)
+            urg = urgencies.get(lk, routine_urg)
+            return compute_priority(
+                severity=sev,
+                confidence=conf,
+                urgency=urg,
+                mission_value=mv,
+                weights=weights,
+                thresholds=thresholds,
+            )
 
-        score, base_action = compute_priority(
-            severity=severity,
-            confidence=confidence,
-            urgency=urgency_val,
-            mission_value=mission_val,
-            weights=weights,
-            thresholds=thresholds,
+        yolo_score, yolo_act = score_cand(det_event, det_conf, det_sev)
+        seg_score, seg_act = score_cand(seg_event, seg_conf, seg_sev)
+
+        # 3. Arbitrate
+        winning_model, event_type, confidence, severity, score, base_action = arbitrate(
+            det_event, det_conf, det_sev, yolo_score, yolo_act,
+            seg_event, seg_conf, seg_sev, seg_score, seg_act,
+            tie_breaker_threshold=tie_thresh,
         )
 
-        # 3. Resource decisions under different scenarios
+        # 4. Resource decisions under different scenarios
         act_high_bw = resource_mgr.decide(score, base_action)
 
         resource_mgr.bandwidth = "CRITICAL"
         act_crit_bw = resource_mgr.decide(score, base_action)
         resource_mgr.bandwidth = "HIGH"  # reset
 
-        # 4. Save visual annotated image with bounding boxes
+        # 5. Save visual annotated image with bounding boxes
         annotated_file = out_dir_path / f"annotated_{img_p.name}"
         if yolo_model:
             try:
@@ -123,7 +138,7 @@ def test_images(image_path=None, image_dir=None, output_dir="custom_images/annot
                 print(f"Warning: Could not annotate image: {e}")
                 annotated_file = None
 
-        print(f"  • Detection:       {event_type.upper()} (conf={confidence:.2f}, severity={severity:.2f})")
+        print(f"  • Detection:       {event_type.upper()} [Winner: {winning_model}] (conf={confidence:.2f}, severity={severity:.2f})")
         print(f"  • Priority Score:  {score:.2f} / 100")
         print(f"  • Base Action:     {base_action}")
         print(f"  • Normal Action:   {act_high_bw}")

@@ -25,7 +25,7 @@ training:
 camera:
   capture_path: "storage/incoming/frame.jpg"
   capture_timeout_ms: 1000
-  fallback_test_image: "ai/test_assets/sample_frame.jpg"
+  fallback_test_image: "ai/test_assets/real_fallback_terrain.jpg"
 
 event_classes: [fire, smoke, disaster_zone, flood, landslide, routine]
 

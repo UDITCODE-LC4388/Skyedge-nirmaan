@@ -60,13 +60,25 @@ Follow these steps in strict numbered order:
 
 ### Step 3: Verify Raspberry Pi Autonomous Controller & OLED
 1. Start the controller (or verify systemd service is active):
-   ```bash
-   cd /home/pi/skyedge/pi
-   source venv/bin/activate
-   python3 main.py
-   ```
+   - **With Camera attached**:
+     ```bash
+     cd /home/pi/skyedge/pi
+     source venv/bin/activate
+     python3 main.py
+     ```
+   - **Camera-Less Bench Testing (using Sample Disaster Packets)**:
+     ```bash
+     cd /home/pi/skyedge/pi
+     source venv/bin/activate
+     python3 main.py --image-dir sample_packets
+     ```
+     *(Autonomously cycles every 3 seconds through: Fire $\rightarrow$ Flood $\rightarrow$ Landslide $\rightarrow$ Routine packets).*
+   - **Batch Evaluation & Visual HUD Verification**:
+     ```bash
+     python3 test_image.py --dir sample_packets
+     ```
 2. Verify console cycling every 3 seconds:
-   - Camera captures frame to `storage/incoming/frame.jpg` (or falls back to test image if camera disconnected).
+   - Camera captures frame to `storage/incoming/frame.jpg` (or gracefully falls back to test packet if camera is disconnected).
    - Dual edge models execute:
      - YOLOv8 NCNN runs on image (`fire`, `smoke`, `disaster_zone`, `flood`).
      - SegFormer ONNX runs on image (`landslide`).

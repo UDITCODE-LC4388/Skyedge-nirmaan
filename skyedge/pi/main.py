@@ -49,7 +49,27 @@ def main():
         default=None,
         help="Custom image path to process instead of camera capture",
     )
+    parser.add_argument(
+        "--image-dir",
+        type=str,
+        default=None,
+        help="Directory of sample packet images to cycle through sequentially instead of camera",
+    )
     args = parser.parse_args()
+
+    # Discover sample packet images if --image-dir is passed
+    sample_images = []
+    if args.image_dir:
+        dir_p = Path(args.image_dir)
+        if not dir_p.is_absolute():
+            dir_p = BASE_DIR / dir_p
+        if dir_p.exists():
+            for ext in ("*.jpg", "*.jpeg", "*.png", "*.bmp", "*.webp"):
+                sample_images.extend(sorted(dir_p.glob(ext)))
+        if sample_images:
+            print(f"[TEST MODE] Found {len(sample_images)} sample packet images to cycle through from: {dir_p}")
+        else:
+            print(f"[WARNING] No sample images found in: {dir_p}")
 
     # Allow setting cycle limit via CLI flag or CYCLES environment variable
     max_cycles = args.cycles
@@ -122,8 +142,15 @@ def main():
             # 2. Update ResourceManager
             resource_mgr.update(telemetry)
 
-            # 3. Capture image (real camera, fallback, or custom image if provided)
-            image_path = args.image if args.image else capture(cfg)
+            # 3. Capture image (real camera, fallback, custom image, or next from sample packet directory)
+            if args.image:
+                image_path = args.image
+            elif sample_images:
+                chosen_sample = sample_images[(cycle_count - 1) % len(sample_images)]
+                image_path = str(chosen_sample)
+                print(f"[SAMPLE PACKET] Cycling frame {(cycle_count - 1) % len(sample_images) + 1}/{len(sample_images)}: {chosen_sample.name}")
+            else:
+                image_path = capture(cfg)
 
             # 4. Run both Detector and SegmentationDetector predict() on the same captured image
             det_event, det_conf, det_sev = detector.predict(image_path)
@@ -174,6 +201,16 @@ def main():
             # 7. Get resource-adjusted action
             action = resource_mgr.decide(priority_score, base_action)
 
+            def transfer_frame(src, dst_dir):
+                os.makedirs(dst_dir, exist_ok=True)
+                dst = os.path.join(dst_dir, Path(src).name)
+                if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(dst):
+                    incoming_resolved = (BASE_DIR / cfg.get("storage", {}).get("incoming", "storage/incoming")).resolve()
+                    if Path(src).resolve().parent == incoming_resolved:
+                        shutil.move(src, dst)
+                    else:
+                        shutil.copy2(src, dst)
+
             # 8. Execute action
             if action == "TRANSMIT_NOW":
                 compressed_path = compress(image_path, tx_quality, tx_dir)
@@ -182,21 +219,12 @@ def main():
                 compressed_path = compress(image_path, queued_quality, queued_dir)
                 queue.push(priority_score, (compressed_path, priority_score, event_type))
             elif action == "QUEUE_OR_STORE":
-                os.makedirs(queued_dir, exist_ok=True)
-                dest_file = os.path.join(queued_dir, Path(image_path).name)
-                if os.path.exists(image_path) and os.path.abspath(image_path) != os.path.abspath(dest_file):
-                    shutil.move(image_path, dest_file)
+                transfer_frame(image_path, queued_dir)
             elif action == "STORE_OR_DISCARD":
-                os.makedirs(discarded_dir, exist_ok=True)
-                dest_file = os.path.join(discarded_dir, Path(image_path).name)
-                if os.path.exists(image_path) and os.path.abspath(image_path) != os.path.abspath(dest_file):
-                    shutil.move(image_path, dest_file)
+                transfer_frame(image_path, discarded_dir)
             else:
                 # Fallback for any unrecognized action
-                os.makedirs(discarded_dir, exist_ok=True)
-                dest_file = os.path.join(discarded_dir, Path(image_path).name)
-                if os.path.exists(image_path) and os.path.abspath(image_path) != os.path.abspath(dest_file):
-                    shutil.move(image_path, dest_file)
+                transfer_frame(image_path, discarded_dir)
 
             # 9. Drain the queue when bandwidth isn't CRITICAL
             if resource_mgr.bandwidth != "CRITICAL":
