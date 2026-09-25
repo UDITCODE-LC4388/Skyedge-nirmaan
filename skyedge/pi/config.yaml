@@ -1,0 +1,53 @@
+cycle_seconds: 3
+weights: {severity: 0.35, confidence: 0.20, urgency: 0.25, mission_value: 0.20}
+thresholds: {transmit_now: 90, compress_and_queue: 70, queue_or_store: 40}
+mission_value: {fire: 0.95, smoke: 0.80, disaster_zone: 0.90, flood: 0.90, landslide: 0.85, routine: 0.20}
+urgency:      {fire: 1.00, smoke: 0.80, disaster_zone: 0.85, flood: 0.90, landslide: 0.70, routine: 0.10}
+resources: {low_bandwidth: 20, critical_bandwidth: 5, storage_limit_pct: 80}
+# Hardware note: serial interfaces for Arduino (telemetry) and ESP32 (transmission)
+serial: {arduino_port: "/dev/ttyACM0", esp32_port: "/dev/serial0", baud: 115200}
+storage:
+  incoming: "storage/incoming"
+  queued: "storage/queued"
+  transmitted: "storage/transmitted"
+  discarded: "storage/discarded"
+compression:
+  queued_quality: 60
+  transmit_quality: 90
+ai:
+  model_path: "ai/models/best_ncnn_model"
+  image_size: 320
+training:
+  base_model: "yolov8n.pt"
+  image_size: 320
+  epochs: 40
+
+camera:
+  capture_path: "storage/incoming/frame.jpg"
+  capture_timeout_ms: 1000
+  fallback_test_image: "ai/test_assets/real_fallback_terrain.jpg"
+
+event_classes: [fire, smoke, disaster_zone, flood, landslide, routine]
+
+segmentation:
+  model_path: "ai/models/landslide_segformer"
+  image_size: 256
+  epochs: 15
+  base_model: "nvidia/segformer-b0-finetuned-ade-512-512"
+  noise_threshold: 0.02
+  normalization:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+
+arbitration:
+  tie_breaker_threshold: 0.0
+
+sensors:
+  acs712_sensitivity_mv_per_amp: 185   # 185=5A variant, 100=20A, 66=30A
+  acs712_zero_voltage: 2.5             # OUT reading with 0A flowing
+  voltage_divider_ratio: 5.0           # typical 0-25V module
+  pins:
+    dht: 2
+    ldr: 3
+    acs712: A1
+    voltage: A2

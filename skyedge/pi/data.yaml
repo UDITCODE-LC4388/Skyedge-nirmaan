@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['0', '1', 'fire', 'smoke']
+
+roboflow:
+  workspace: walid-azzi-6ys1r
+  project: wildfire-satellite-rztas
+  version: 4
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/walid-azzi-6ys1r/wildfire-satellite-rztas/dataset/4
