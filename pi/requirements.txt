@@ -1,0 +1,21 @@
+# Core dependencies for SkyEdge Autonomous Mission Controller
+pyyaml>=6.0.2
+opencv-python-headless>=4.10.0
+numpy>=1.26.0
+pyserial>=3.5
+pillow>=10.4.0
+
+# Edge AI inference engines & model runtimes
+ultralytics>=8.3.0
+onnxruntime>=1.19.0
+onnx>=1.16.0
+ncnn>=1.0.20240410
+torch>=2.4.0
+torchvision>=0.19.0
+transformers>=4.45.0
+
+# Hardware display (SSD1306 I2C OLED)
+luma.oled>=3.13.0
+
+# Testing
+pytest>=8.3.0

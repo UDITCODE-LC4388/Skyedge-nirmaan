@@ -1,0 +1,23 @@
+description: Ultralytics best model trained on /Users/uditsinghi/skyedge nirmaan/skyedge/pi/ai/datasets/merged_data.yaml
+author: Ultralytics
+date: '2026-09-20T04:09:09.875665+05:30'
+version: 8.4.153
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+head: Detect
+batch: 1
+imgsz:
+- 320
+- 320
+names:
+  0: fire
+  1: smoke
+  2: disaster_zone
+  3: flood
+args:
+  batch: 1
+  quantize: null
+channels: 3
+end2end: false
